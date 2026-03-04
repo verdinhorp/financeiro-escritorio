@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financeiro Escritório</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+        .header { background: #1c1c1c; color: white; padding: 40px 20px; text-align: center; border-radius: 0 0 25px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .header h1 { margin: 10px 0 0; font-size: 32px; }
+        .card { background: white; margin: -20px 20px 20px; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+        .btn-row { display: flex; gap: 15px; }
+        button { flex: 1; padding: 18px; border: none; border-radius: 10px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; text-transform: uppercase; }
+        .btn-in { background: #2ecc71; }
+        .btn-out { background: #e74c3c; }
+        .section-title { padding: 0 25px; color: #444; font-weight: bold; margin-bottom: 10px; }
+        .hist-item { background: white; margin: 0 20px 10px; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .hist-desc { font-weight: bold; color: #333; }
+        .hist-date { font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="font-size: 10px; opacity: 0.5; letter-spacing: 2px;">SISTEMA DE FLUXO</div>
+        <h1 id="saldo">R$ 0,00</h1>
+    </div>
+
+    <div class="card">
+        <input type="text" id="desc" placeholder="Descrição (Ex: Cliente, Luz...)">
+        <input type="number" id="valor" placeholder="Valor R$ 0,00" step="0.01">
+        <div class="btn-row">
+            <button class="btn-in" onclick="lancar('entrada')">Entrada</button>
+            <button class="btn-out" onclick="lancar('saida')">Saída</button>
+        </div>
+    </div>
+
+    <div class="section-title">HISTÓRICO RECENTE</div>
+    <div id="lista"></div>
+
+    <script>
+        // Suas chaves do Supabase que já estão funcionando
+        const supabaseUrl = 'https://uhddyxmflimxakurztoj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoZGR5eG1mbGlteGFrurztojIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2Mjg5NTIsImV4cCI6MjA4ODIwNDk1Mn0.TQJjS9ijbeCzsp0KdyhKgc27ouopZTqII66BLU7dtMg';
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function atualizar() {
+            const { data, error } = await _supabase.from('movimentacoes').select('*').order('id', { ascending: false });
+            if (error) return;
+            
+            let total = 0;
+            const listaDiv = document.getElementById('lista');
+            listaDiv.innerHTML = '';
+
+            data.forEach(m => {
+                total += m.tipo === 'entrada' ? m.valor : -m.valor;
+                listaDiv.innerHTML += `
+                    <div class="hist-item">
+                        <div>
+                            <div class="hist-desc">${m.descricao}</div>
+                            <div class="hist-date">${m.data.split('-').reverse().join('/')}</div>
+                        </div>
+                        <div style="font-weight:bold; color:${m.tipo === 'entrada' ? '#2ecc71' : '#e74c3c'}">
+                            ${m.tipo === 'entrada' ? '+' : '-'} R$ ${m.valor.toFixed(2)}
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('saldo').innerText = `R$ ${total.toFixed(2)}`;
+        }
+
+        async function lancar(tipo) {
+            const v = document.getElementById('valor').value;
+            const d = document.getElementById('desc').value;
+            if(!v || !d) return alert('Preencha os campos!');
+
+            const { error } = await _supabase.from('movimentacoes').insert([{
+                valor: parseFloat(v),
+                tipo: tipo,
+                descricao: d.toUpperCase(),
+                data: new Date().toISOString().split('T')[0]
+            }]);
+
+            if (error) alert('Erro ao salvar!');
+            else {
+                document.getElementById('valor').value = '';
+                document.getElementById('desc').value = '';
+                atualizar();
+            }
+        }
+        atualizar();
+        // Atualiza a cada 30 segundos sozinho para o PC e Celular ficarem iguais
+        setInterval(atualizar, 30000);
+    </script>
+</body>
+</html>
