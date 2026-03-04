@@ -2,96 +2,134 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financeiro Escritório</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Financeiro Escritório - Painel Central</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
-        .header { background: #1c1c1c; color: white; padding: 40px 20px; text-align: center; border-radius: 0 0 25px 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .header h1 { margin: 10px 0 0; font-size: 32px; }
-        .card { background: white; margin: -20px 20px 20px; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
-        .btn-row { display: flex; gap: 15px; }
-        button { flex: 1; padding: 18px; border: none; border-radius: 10px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; text-transform: uppercase; }
-        .btn-in { background: #2ecc71; }
-        .btn-out { background: #e74c3c; }
-        .section-title { padding: 0 25px; color: #444; font-weight: bold; margin-bottom: 10px; }
-        .hist-item { background: white; margin: 0 20px 10px; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .hist-desc { font-weight: bold; color: #333; }
-        .hist-date { font-size: 12px; color: #999; }
+        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; color: #333; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .saldo-box { background: #27ae60; color: white; text-align: center; padding: 20px; border-radius: 10px; }
+        input, select, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { cursor: pointer; font-weight: bold; border: none; transition: 0.3s; }
+        button:hover { opacity: 0.8; }
+        .btn-entrada { background: #27ae60; color: white; }
+        .btn-saida { background: #e74c3c; color: white; }
+        .btn-qr { background: #2980b9; color: white; }
+        #modal-qr { display: none; text-align: center; margin-top: 15px; padding: 20px; }
+        strong { display: block; margin-bottom: 5px; color: #2c3e50; }
+        .hist-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+        #qrcode-container img { margin: 0 auto; } /* Centraliza o QR Code */
     </style>
 </head>
 <body>
-    <div class="header">
-        <div style="font-size: 10px; opacity: 0.5; letter-spacing: 2px;">SISTEMA DE FLUXO</div>
-        <h1 id="saldo">R$ 0,00</h1>
+
+    <div class="card saldo-box">
+        <small>SALDO ATUAL EM CAIXA</small>
+        <h1 id="saldo-valor">R$ 0,00</h1>
     </div>
 
     <div class="card">
-        <input type="text" id="desc" placeholder="Descrição (Ex: Cliente, Luz...)">
-        <input type="number" id="valor" placeholder="Valor R$ 0,00" step="0.01">
-        <div class="btn-row">
-            <button class="btn-in" onclick="lancar('entrada')">Entrada</button>
-            <button class="btn-out" onclick="lancar('saida')">Saída</button>
-        </div>
+        <strong>💰 Lançar Entrada</strong>
+        <input type="text" id="desc-entrada" placeholder="Origem (Ex: Cliente)">
+        <input type="number" id="valor-entrada" placeholder="Valor (R$)">
+        <button class="btn-entrada" onclick="lancar('entrada')">Confirmar Recebimento</button>
     </div>
 
-    <div class="section-title">HISTÓRICO RECENTE</div>
-    <div id="lista"></div>
+    <div class="card">
+        <strong>💸 Lançar Saída</strong>
+        <input type="text" id="desc-saida" placeholder="Destino (Ex: Luz, Água)">
+        <input type="number" id="valor-saida" placeholder="Valor (R$)">
+        <button class="btn-saida" onclick="lancar('saida')">Confirmar Gasto</button>
+    </div>
+
+    <div class="card">
+        <label style="font-size: 12px; font-weight: bold;">📅 Filtrar por Mês:</label>
+        <select id="filtro-mes" onchange="atualizarDados()">
+            <option value="todos">Todos os Meses</option>
+            <option value="01">Janeiro</option><option value="02">Fevereiro</option>
+            <option value="03">Março</option><option value="04">Abril</option>
+            <option value="05">Maio</option><option value="06">Junho</option>
+            <option value="07">Julho</option><option value="08">Agosto</option>
+            <option value="09">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+        </select>
+        <div id="lista-agrupada" style="margin-top: 15px;"></div>
+    </div>
+
+    <button class="btn-qr" onclick="alternarQR()">📲 QR Code para Celular</button>
+    
+    <div id="modal-qr" class="card">
+        <strong>Acesse pelo Celular</strong>
+        <div id="qrcode-container" style="margin: 15px 0; display: flex; justify-content: center;"></div>
+        <p style="font-size: 11px; color: #666;">Aponte a <b>câmera normal</b> do celular.<br>Abre o site do GitHub Pages.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <script>
-        // Suas chaves do Supabase que já estão funcionando
         const supabaseUrl = 'https://uhddyxmflimxakurztoj.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoZGR5eG1mbGlteGFrurztojIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2Mjg5NTIsImV4cCI6MjA4ODIwNDk1Mn0.TQJjS9ijbeCzsp0KdyhKgc27ouopZTqII66BLU7dtMg';
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        async function atualizar() {
+        // GERA O QR CODE DO GITHUB (NÃO DO EXPO)
+        window.onload = function() {
+            new QRCode(document.getElementById("qrcode-container"), {
+                text: "https://verdinhorp.github.io/financeiro-escritorio/",
+                width: 160,
+                height: 160
+            });
+            atualizarDados();
+        };
+
+        function alternarQR() {
+            const m = document.getElementById('modal-qr');
+            m.style.display = m.style.display === 'block' ? 'none' : 'block';
+        }
+
+        async function atualizarDados() {
             const { data, error } = await _supabase.from('movimentacoes').select('*').order('id', { ascending: false });
             if (error) return;
-            
+
+            const filtroMes = document.getElementById('filtro-mes').value;
             let total = 0;
-            const listaDiv = document.getElementById('lista');
-            listaDiv.innerHTML = '';
+            let html = "";
 
             data.forEach(m => {
-                total += m.tipo === 'entrada' ? m.valor : -m.valor;
-                listaDiv.innerHTML += `
-                    <div class="hist-item">
-                        <div>
-                            <div class="hist-desc">${m.descricao}</div>
-                            <div class="hist-date">${m.data.split('-').reverse().join('/')}</div>
-                        </div>
-                        <div style="font-weight:bold; color:${m.tipo === 'entrada' ? '#2ecc71' : '#e74c3c'}">
-                            ${m.tipo === 'entrada' ? '+' : '-'} R$ ${m.valor.toFixed(2)}
-                        </div>
-                    </div>
-                `;
+                const mesM = m.data.split('-')[1];
+                if (filtroMes === 'todos' || filtroMes === mesM) {
+                    total += m.tipo === 'entrada' ? m.valor : -m.valor;
+                    html += `
+                        <div class="hist-item">
+                            <span>${m.descricao}</span>
+                            <b style="color:${m.tipo === 'entrada' ? '#27ae60' : '#e74c3c'}">
+                                ${m.tipo === 'entrada' ? '+' : '-'} R$ ${m.valor.toFixed(2)}
+                            </b>
+                        </div>`;
+                }
             });
-            document.getElementById('saldo').innerText = `R$ ${total.toFixed(2)}`;
+
+            document.getElementById('saldo-valor').innerText = `R$ ${total.toFixed(2)}`;
+            document.getElementById('lista-agrupada').innerHTML = html;
         }
 
         async function lancar(tipo) {
-            const v = document.getElementById('valor').value;
-            const d = document.getElementById('desc').value;
-            if(!v || !d) return alert('Preencha os campos!');
+            const descInput = document.getElementById(tipo === 'entrada' ? 'desc-entrada' : 'desc-saida');
+            const valorInput = document.getElementById(tipo === 'entrada' ? 'valor-entrada' : 'valor-saida');
 
-            const { error } = await _supabase.from('movimentacoes').insert([{
-                valor: parseFloat(v),
+            if (!descInput.value || !valorInput.value) return alert("Preencha os campos!");
+
+            await _supabase.from('movimentacoes').insert([{
+                descricao: descInput.value.toUpperCase(),
+                valor: parseFloat(valorInput.value),
                 tipo: tipo,
-                descricao: d.toUpperCase(),
                 data: new Date().toISOString().split('T')[0]
             }]);
 
-            if (error) alert('Erro ao salvar!');
-            else {
-                document.getElementById('valor').value = '';
-                document.getElementById('desc').value = '';
-                atualizar();
-            }
+            descInput.value = ""; valorInput.value = "";
+            atualizarDados();
         }
-        atualizar();
-        // Atualiza a cada 30 segundos sozinho para o PC e Celular ficarem iguais
-        setInterval(atualizar, 30000);
+
+        // Realtime
+        _supabase.channel('db-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'movimentacoes' }, () => atualizarDados()).subscribe();
     </script>
 </body>
 </html>
