@@ -2,21 +2,58 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Financeiro Escritório - Painel Central</title>
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; color: #333; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        .saldo-box { background: #27ae60; color: white; text-align: center; padding: 20px; border-radius: 10px; }
-        input, select, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
+        /* Ajustes para preencher a tela do celular corretamente */
+        * { box-sizing: border-box; }
+        body { 
+            font-family: sans-serif; 
+            background: #f4f7f6; 
+            padding: 15px; /* Reduzi um pouco o padding para ganhar espaço */
+            color: #333; 
+            margin: 0;
+        }
+        .card { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            margin-bottom: 15px; 
+        }
+        .saldo-box { 
+            background: #27ae60; 
+            color: white; 
+            text-align: center; 
+            padding: 25px 15px; 
+            border-radius: 10px; 
+        }
+        #saldo-valor { margin: 10px 0 0 0; font-size: 2.2rem; }
+        
+        /* Inputs e Botões maiores para o toque do dedo */
+        input, select, button { 
+            width: 100%; 
+            padding: 12px; /* Aumentei o clique */
+            margin-top: 10px; 
+            border-radius: 8px; 
+            border: 1px solid #ddd; 
+            font-size: 16px; /* Impede zoom automático no iPhone */
+        }
         button { cursor: pointer; font-weight: bold; border: none; transition: 0.3s; }
-        button:hover { opacity: 0.8; }
-        .btn-entrada { background: #27ae60; color: white; }
-        .btn-saida { background: #e74c3c; color: white; }
-        .btn-qr { background: #2980b9; color: white; }
+        .btn-entrada { background: #27ae60; color: white; height: 50px; }
+        .btn-saida { background: #e74c3c; color: white; height: 50px; }
+        .btn-qr { background: #2980b9; color: white; margin-top: 20px; }
+        
+        strong { display: block; margin-bottom: 5px; color: #2c3e50; font-size: 1.1rem; }
+        .hist-item { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 12px 0; /* Mais espaçamento no histórico */
+            border-bottom: 1px solid #eee; 
+            font-size: 15px; 
+        }
         #modal-qr { display: none; text-align: center; margin-top: 15px; padding: 20px; }
-        strong { display: block; margin-bottom: 5px; color: #2c3e50; }
-        .hist-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
-        #qrcode-container img { margin: 0 auto; } /* Centraliza o QR Code */
+        #qrcode-container img { margin: 0 auto; max-width: 100%; height: auto; }
     </style>
 </head>
 <body>
@@ -29,19 +66,19 @@
     <div class="card">
         <strong>💰 Lançar Entrada</strong>
         <input type="text" id="desc-entrada" placeholder="Origem (Ex: Cliente)">
-        <input type="number" id="valor-entrada" placeholder="Valor (R$)">
+        <input type="number" id="valor-entrada" placeholder="Valor (R$)" inputmode="decimal">
         <button class="btn-entrada" onclick="lancar('entrada')">Confirmar Recebimento</button>
     </div>
 
     <div class="card">
         <strong>💸 Lançar Saída</strong>
         <input type="text" id="desc-saida" placeholder="Destino (Ex: Luz, Água)">
-        <input type="number" id="valor-saida" placeholder="Valor (R$)">
+        <input type="number" id="valor-saida" placeholder="Valor (R$)" inputmode="decimal">
         <button class="btn-saida" onclick="lancar('saida')">Confirmar Gasto</button>
     </div>
 
     <div class="card">
-        <label style="font-size: 12px; font-weight: bold;">📅 Filtrar por Mês:</label>
+        <label style="font-size: 14px; font-weight: bold;">📅 Filtrar por Mês:</label>
         <select id="filtro-mes" onchange="atualizarDados()">
             <option value="todos">Todos os Meses</option>
             <option value="01">Janeiro</option><option value="02">Fevereiro</option>
@@ -54,12 +91,11 @@
         <div id="lista-agrupada" style="margin-top: 15px;"></div>
     </div>
 
-    <button class="btn-qr" onclick="alternarQR()">📲 QR Code para Celular</button>
+    <button class="btn-qr" onclick="alternarQR()">📲 Mostrar QR Code</button>
     
     <div id="modal-qr" class="card">
         <strong>Acesse pelo Celular</strong>
         <div id="qrcode-container" style="margin: 15px 0; display: flex; justify-content: center;"></div>
-        <p style="font-size: 11px; color: #666;">Aponte a <b>câmera normal</b> do celular.<br>Abre o site do GitHub Pages.</p>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -70,7 +106,6 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoZGR5eG1mbGlteGFrurztojIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2Mjg5NTIsImV4cCI6MjA4ODIwNDk1Mn0.TQJjS9ijbeCzsp0KdyhKgc27ouopZTqII66BLU7dtMg';
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // GERA O QR CODE DO GITHUB (NÃO DO EXPO)
         window.onload = function() {
             new QRCode(document.getElementById("qrcode-container"), {
                 text: "https://verdinhorp.github.io/financeiro-escritorio/",
@@ -117,18 +152,22 @@
 
             if (!descInput.value || !valorInput.value) return alert("Preencha os campos!");
 
-            await _supabase.from('movimentacoes').insert([{
+            const { error } = await _supabase.from('movimentacoes').insert([{
                 descricao: descInput.value.toUpperCase(),
                 valor: parseFloat(valorInput.value),
                 tipo: tipo,
                 data: new Date().toISOString().split('T')[0]
             }]);
 
-            descInput.value = ""; valorInput.value = "";
-            atualizarDados();
+            if (error) {
+                alert("Erro ao salvar: " + error.message);
+            } else {
+                descInput.value = ""; 
+                valorInput.value = "";
+                atualizarDados();
+            }
         }
 
-        // Realtime
         _supabase.channel('db-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'movimentacoes' }, () => atualizarDados()).subscribe();
     </script>
 </body>
